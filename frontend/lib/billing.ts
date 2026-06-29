@@ -1,4 +1,5 @@
 import type {
+  CreditGrant,
   Customer,
   CustomerStatus,
   CustomerSummary,
@@ -178,6 +179,7 @@ export function buildCustomerUsage(
   customer: Customer,
   events: UsageEvent[],
   pricing: PricingRate[],
+  grants: CreditGrant[] = [],
   recentLimit = 25,
   now = new Date(),
 ): CustomerUsage {
@@ -213,7 +215,18 @@ export function buildCustomerUsage(
     recentEvents,
     dailySeries: buildDailySeries(cycleEvents, pricing, now),
     ...forecast(runningTotalCents, now),
+    prepaid: prepaidBalance(grants, runningTotalCents),
   }
+}
+
+/** Prepaid drawdown: granted total minus usage = remaining balance. */
+function prepaidBalance(
+  grants: CreditGrant[],
+  usedCents: number,
+): CustomerUsage["prepaid"] {
+  const grantedCents = grants.reduce((s, g) => s + g.amountCents, 0)
+  if (grantedCents <= 0) return null
+  return { grantedCents, usedCents, remainingCents: grantedCents - usedCents }
 }
 
 /** Build invoice line items + total for a customer's cycle. */

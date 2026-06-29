@@ -15,6 +15,7 @@ import Link from "next/link"
 import { postWrite } from "@/lib/client-write"
 import { ConsistencyTest } from "@/components/consistency-test"
 import { AuditTrail } from "@/components/audit-trail"
+import { PrepaidCard } from "@/components/prepaid-card"
 import { SpendAreaChart } from "@/components/charts"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -169,6 +170,12 @@ export function CustomerDetail({
           </span>
         </div>
       )}
+
+      <PrepaidCard
+        customerId={customerId}
+        prepaid={usage.prepaid}
+        onChange={() => mutate()}
+      />
 
       {/* Spend trend */}
       <div className="overflow-hidden rounded-lg border border-border bg-card">

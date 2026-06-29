@@ -51,6 +51,20 @@ export interface DailyPoint {
   cents: number // cumulative spend through this day in the cycle
 }
 
+export interface CreditGrant {
+  id: string
+  customerId: string
+  amountCents: number
+  note: string | null
+  createdAt: string
+}
+
+export interface PrepaidBalance {
+  grantedCents: number
+  usedCents: number
+  remainingCents: number
+}
+
 export interface CustomerUsage {
   customer: Customer
   runningTotalCents: number
@@ -60,6 +74,7 @@ export interface CustomerUsage {
   dailySeries: DailyPoint[]
   projectedCents: number // forecast end-of-cycle spend from current run-rate
   cycleProgress: number // fraction of the cycle elapsed (0..1)
+  prepaid: PrepaidBalance | null // prepaid credit drawdown, when granted
 }
 
 export interface InvoiceLineItem {

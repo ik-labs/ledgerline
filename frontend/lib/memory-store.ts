@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto"
 import { getCurrentCycle } from "./billing"
-import type { Customer, Invoice, PricingRate, UsageEvent } from "./types"
+import type {
+  CreditGrant,
+  Customer,
+  Invoice,
+  PricingRate,
+  UsageEvent,
+} from "./types"
 
 /**
  * In-memory data store used ONLY when DATABASE_URL is not configured. It lets
@@ -14,6 +20,7 @@ interface Store {
   pricing: PricingRate[]
   events: UsageEvent[]
   invoices: Invoice[]
+  grants: CreditGrant[]
 }
 
 const PRICING: PricingRate[] = [
@@ -121,6 +128,7 @@ function init(): Store {
     pricing: PRICING,
     events: seedEvents(),
     invoices: [],
+    grants: [{ id: randomUUID(), customerId: C1, amountCents: 100_000, note: "Initial commitment", createdAt: new Date().toISOString() }],
   }
 }
 

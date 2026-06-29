@@ -22,3 +22,9 @@ INSERT INTO customers (id, name, plan, spend_threshold_cents) VALUES
     ('22222222-2222-4222-8222-222222222222', 'Helios Robotics',     'Growth',  25000),
     ('33333333-3333-4333-8333-333333333333', 'Atlas Mapping Co.',   'Starter', 10000)
 ON CONFLICT (id) DO NOTHING;
+
+-- Prepaid commitments (Atlas intentionally has none — shows the empty state).
+INSERT INTO credit_grants (id, customer_id, amount_cents, note) VALUES
+    ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '11111111-1111-4111-8111-111111111111', 100000, 'Annual commitment'),
+    ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '22222222-2222-4222-8222-222222222222',  75000, 'Annual commitment')
+ON CONFLICT (id) DO NOTHING;

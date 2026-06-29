@@ -47,6 +47,16 @@ export const pricing = pgTable("pricing", {
   tiers: jsonb("tiers"),
 })
 
+export const creditGrants = pgTable("credit_grants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  customerId: uuid("customer_id").notNull(),
+  amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
 export const invoices = pgTable("invoices", {
   id: uuid("id").primaryKey().defaultRandom(),
   customerId: uuid("customer_id").notNull(),

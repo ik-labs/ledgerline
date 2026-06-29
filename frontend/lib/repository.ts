@@ -1,5 +1,6 @@
 import { db } from "./db/client"
 import {
+  creditGrants as creditGrantsTable,
   customers as customersTable,
   invoices as invoicesTable,
   pricing as pricingTable,
@@ -13,6 +14,7 @@ import {
 } from "./billing"
 import { slugify } from "./slug"
 import type {
+  CreditGrant,
   Customer,
   CustomerSummary,
   CustomerUsage,
@@ -27,6 +29,7 @@ export interface Snapshot {
   pricing: PricingRate[]
   events: UsageEvent[]
   invoices: Invoice[]
+  grants: CreditGrant[]
 }
 
 function iso(value: Date | string): string {
@@ -45,15 +48,18 @@ export async function loadSnapshot(): Promise<Snapshot> {
       pricing: s.pricing,
       events: s.events,
       invoices: s.invoices,
+      grants: s.grants ?? [],
     }
   }
 
-  const [customerRows, pricingRows, eventRows, invoiceRows] = await Promise.all([
-    db.select().from(customersTable),
-    db.select().from(pricingTable),
-    db.select().from(usageEventsTable),
-    db.select().from(invoicesTable),
-  ])
+  const [customerRows, pricingRows, eventRows, invoiceRows, grantRows] =
+    await Promise.all([
+      db.select().from(customersTable),
+      db.select().from(pricingTable),
+      db.select().from(usageEventsTable),
+      db.select().from(invoicesTable),
+      db.select().from(creditGrantsTable),
+    ])
 
   const customers: Customer[] = customerRows.map((c) => ({
     id: c.id,
@@ -91,7 +97,15 @@ export async function loadSnapshot(): Promise<Snapshot> {
     createdAt: iso(inv.createdAt),
   }))
 
-  return { customers, pricing, events, invoices }
+  const grants: CreditGrant[] = grantRows.map((g) => ({
+    id: g.id,
+    customerId: g.customerId,
+    amountCents: Number(g.amountCents),
+    note: g.note ?? null,
+    createdAt: iso(g.createdAt),
+  }))
+
+  return { customers, pricing, events, invoices, grants }
 }
 
 export async function getCustomerSummaries(): Promise<CustomerSummary[]> {
@@ -102,10 +116,15 @@ export async function getCustomerSummaries(): Promise<CustomerSummary[]> {
 export async function getCustomerUsage(
   customerId: string,
 ): Promise<CustomerUsage | null> {
-  const { customers, events, pricing } = await loadSnapshot()
+  const { customers, events, pricing, grants } = await loadSnapshot()
   const customer = customers.find((c) => c.id === customerId)
   if (!customer) return null
-  return buildCustomerUsage(customer, events, pricing)
+  return buildCustomerUsage(
+    customer,
+    events,
+    pricing,
+    grants.filter((g) => g.customerId === customer.id),
+  )
 }
 
 export async function getCustomerById(
@@ -133,12 +152,39 @@ export async function getCustomerEvents(
 export async function getCustomerUsageByParam(
   param: string,
 ): Promise<CustomerUsage | null> {
-  const { customers, events, pricing } = await loadSnapshot()
+  const { customers, events, pricing, grants } = await loadSnapshot()
   const customer = customers.find(
     (c) => c.id === param || slugify(c.name) === param,
   )
   if (!customer) return null
-  return buildCustomerUsage(customer, events, pricing)
+  return buildCustomerUsage(
+    customer,
+    events,
+    pricing,
+    grants.filter((g) => g.customerId === customer.id),
+  )
+}
+
+/** Append a prepaid credit grant (write path). */
+export async function grantCredits(
+  customerId: string,
+  amountCents: number,
+  note = "Prepaid credit",
+): Promise<void> {
+  if (!db) {
+    const s = memoryStore()
+    s.grants.push({
+      id: crypto.randomUUID(),
+      customerId,
+      amountCents,
+      note,
+      createdAt: new Date().toISOString(),
+    })
+    return
+  }
+  await db
+    .insert(creditGrantsTable)
+    .values({ customerId, amountCents, note })
 }
 
 export async function getPricing(): Promise<PricingRate[]> {

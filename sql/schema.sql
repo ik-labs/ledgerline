@@ -70,3 +70,17 @@ CREATE TABLE invoices (
 
 CREATE UNIQUE INDEX ASYNC invoices_customer_period
     ON invoices (customer_id, period_start, period_end);
+
+-- ----------------------------------------------------------------------------
+-- credit_grants  (append-only prepaid credit / commitment grants)
+--   A customer's prepaid balance is sum(amount_cents); usage draws it down.
+-- ----------------------------------------------------------------------------
+CREATE TABLE credit_grants (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id  uuid NOT NULL,
+    amount_cents bigint NOT NULL,
+    note         text,
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ASYNC credit_grants_customer ON credit_grants (customer_id);
