@@ -114,6 +114,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
     name: p.name,
     baseFeeCents: Number(p.baseFeeCents),
     included: (p.included as Record<string, number>) ?? {},
+    minimumCents: Number(p.minimumCents ?? 0),
   }))
 
   return { customers, pricing, events, invoices, grants, plans }
@@ -198,6 +199,17 @@ export async function grantCredits(
   await db
     .insert(creditGrantsTable)
     .values({ customerId, amountCents, note })
+}
+
+export async function getInvoiceById(id: string): Promise<Invoice | null> {
+  const { invoices, customers } = await loadSnapshot()
+  const inv = invoices.find((i) => i.id === id)
+  if (!inv) return null
+  return {
+    ...inv,
+    customerName:
+      customers.find((c) => c.id === inv.customerId)?.name ?? "Unknown",
+  }
 }
 
 export async function getPricing(): Promise<PricingRate[]> {

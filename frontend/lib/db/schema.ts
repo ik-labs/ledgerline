@@ -1,5 +1,7 @@
 import {
   bigint,
+  boolean,
+  integer,
   jsonb,
   numeric,
   pgTable,
@@ -47,10 +49,32 @@ export const pricing = pgTable("pricing", {
   tiers: jsonb("tiers"),
 })
 
+export const webhookEndpoints = pgTable("webhook_endpoints", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  url: text("url").notNull(),
+  description: text("description"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  endpointId: uuid("endpoint_id").notNull(),
+  eventType: text("event_type").notNull(),
+  status: text("status").notNull(),
+  statusCode: integer("status_code"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
 export const plans = pgTable("plans", {
   name: text("name").primaryKey(),
   baseFeeCents: bigint("base_fee_cents", { mode: "number" }).notNull(),
   included: jsonb("included").notNull(),
+  minimumCents: bigint("minimum_cents", { mode: "number" }),
 })
 
 export const creditGrants = pgTable("credit_grants", {

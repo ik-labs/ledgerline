@@ -11,8 +11,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 DSQL="$HERE/dsql.sh"
 
-echo "Clearing usage_events + invoices…"
-"$DSQL" -q -c "DELETE FROM invoices; DELETE FROM usage_events;" >/dev/null
+echo "Clearing usage_events + invoices + webhook log…"
+"$DSQL" -q -c "DELETE FROM invoices; DELETE FROM usage_events; DELETE FROM webhook_deliveries; DELETE FROM webhook_endpoints;" >/dev/null
 
 echo "Re-seeding rate card + customers…"
 "$DSQL" -q -f "$ROOT/sql/seed.sql" >/dev/null

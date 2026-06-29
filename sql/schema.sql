@@ -58,7 +58,8 @@ CREATE TABLE pricing (
 CREATE TABLE plans (
     name           text PRIMARY KEY,
     base_fee_cents bigint NOT NULL,
-    included       jsonb NOT NULL     -- { metric: included_quantity }
+    included       jsonb NOT NULL,    -- { metric: included_quantity }
+    minimum_cents  bigint NOT NULL DEFAULT 0  -- minimum commitment (true-up floor)
 );
 
 -- ----------------------------------------------------------------------------
@@ -93,3 +94,25 @@ CREATE TABLE credit_grants (
 );
 
 CREATE INDEX ASYNC credit_grants_customer ON credit_grants (customer_id);
+
+-- ----------------------------------------------------------------------------
+-- webhooks: registered endpoints + an append-only delivery log
+-- ----------------------------------------------------------------------------
+CREATE TABLE webhook_endpoints (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    url         text NOT NULL,
+    description text,
+    active      boolean NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE webhook_deliveries (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    endpoint_id uuid NOT NULL,
+    event_type  text NOT NULL,
+    status      text NOT NULL,
+    status_code int,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ASYNC webhook_deliveries_created ON webhook_deliveries (created_at);

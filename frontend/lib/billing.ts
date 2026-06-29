@@ -251,12 +251,18 @@ export function buildSubscription(
     })
     .sort((a, b) => b.overageCents - a.overageCents)
 
+  const minimumCents = plan.minimumCents ?? 0
+  const beforeMinimum = plan.baseFeeCents + overageCents
+  const trueUpCents = Math.max(0, minimumCents - beforeMinimum)
+
   return {
     planName: plan.name,
     baseFeeCents: plan.baseFeeCents,
     lines,
     overageCents,
-    totalDueCents: plan.baseFeeCents + overageCents,
+    minimumCents,
+    trueUpCents,
+    totalDueCents: beforeMinimum + trueUpCents,
   }
 }
 

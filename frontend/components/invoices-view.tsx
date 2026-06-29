@@ -3,7 +3,8 @@
 import { useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { ChevronDown, FileText, Loader2, Play } from "lucide-react"
+import Link from "next/link"
+import { ArrowRight, ChevronDown, FileText, Loader2, Play } from "lucide-react"
 import { postWrite } from "@/lib/client-write"
 import { Button } from "@/components/ui/button"
 import {
@@ -208,6 +209,15 @@ function FragmentRow({
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-2 text-right">
+              <Link
+                href={`/invoices/${invoice.id}`}
+                className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+              >
+                Open full invoice
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </td>
         </tr>

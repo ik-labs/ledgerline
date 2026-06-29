@@ -55,6 +55,7 @@ export interface Plan {
   name: string
   baseFeeCents: number
   included: Record<string, number> // metric -> included quantity
+  minimumCents: number // minimum commitment (true-up floor)
 }
 
 export interface SubscriptionLine {
@@ -70,7 +71,9 @@ export interface Subscription {
   baseFeeCents: number
   lines: SubscriptionLine[]
   overageCents: number
-  totalDueCents: number // base fee + overage
+  minimumCents: number
+  trueUpCents: number // top-up to reach the minimum commitment, if usage falls short
+  totalDueCents: number // base + overage + true-up
 }
 
 export interface CreditGrant {

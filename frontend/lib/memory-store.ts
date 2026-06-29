@@ -10,15 +10,17 @@ import type {
 } from "./types"
 
 const PLANS: Plan[] = [
-  { name: "Starter", baseFeeCents: 0, included: { api_call: 2000, gb_stored: 50 } },
+  { name: "Starter", baseFeeCents: 0, minimumCents: 0, included: { api_call: 2000, gb_stored: 50 } },
   {
     name: "Growth",
     baseFeeCents: 4900,
+    minimumCents: 7500,
     included: { api_call: 10000, gb_stored: 200, compute_ms: 50000, egress_gb: 50, seat: 3 },
   },
   {
     name: "Scale",
     baseFeeCents: 9900,
+    minimumCents: 15000,
     included: { api_call: 50000, gb_stored: 1000, compute_ms: 200000, egress_gb: 200, seat: 10 },
   },
 ]

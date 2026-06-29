@@ -10,6 +10,8 @@ const LINKS = [
   { href: "/invoices", label: "Invoices" },
   { href: "/analytics", label: "Analytics" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/timetravel", label: "Time travel" },
+  { href: "/webhooks", label: "Webhooks" },
 ]
 
 export function SiteHeader() {

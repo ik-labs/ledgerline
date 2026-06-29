@@ -61,7 +61,7 @@ export function SubscriptionCard({
       </table>
 
       <div className="flex items-center justify-between gap-6 border-t border-border px-4 py-3">
-        <div className="flex gap-6 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
           <span>
             Base{" "}
             <span className="font-mono text-foreground">
@@ -74,6 +74,12 @@ export function SubscriptionCard({
               {formatCents(s.overageCents)}
             </span>
           </span>
+          {s.trueUpCents > 0 && (
+            <span className="text-warning">
+              True-up to {formatCents(s.minimumCents)} min{" "}
+              <span className="font-mono">+{formatCents(s.trueUpCents)}</span>
+            </span>
+          )}
         </div>
         <div className="text-right">
           <div className="text-xs text-muted-foreground">Total due this cycle</div>
