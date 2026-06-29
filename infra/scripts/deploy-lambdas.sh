@@ -31,9 +31,15 @@ aws iam attach-role-policy --role-name "$LAMBDA_ROLE" \
 aws iam attach-role-policy --role-name "$LAMBDA_ROLE" \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole 2>/dev/null
 
-# Inline policy: connect to DSQL as admin + publish SNS.
+# Inline policy: connect to DSQL as admin. Grant sns:Publish ONLY when a topic
+# is configured, and scope it to that exact topic (no wildcard).
+if [ -n "$SNS_TOPIC_ARN" ]; then
+  POLICY_DOC="{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"DsqlConnect\",\"Effect\":\"Allow\",\"Action\":\"dsql:DbConnectAdmin\",\"Resource\":\"${CLUSTER_ARN}\"},{\"Sid\":\"SnsPublish\",\"Effect\":\"Allow\",\"Action\":\"sns:Publish\",\"Resource\":\"${SNS_TOPIC_ARN}\"}]}"
+else
+  POLICY_DOC="{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"DsqlConnect\",\"Effect\":\"Allow\",\"Action\":\"dsql:DbConnectAdmin\",\"Resource\":\"${CLUSTER_ARN}\"}]}"
+fi
 aws iam put-role-policy --role-name "$LAMBDA_ROLE" --policy-name ledgerline-dsql-sns \
-  --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"dsql:DbConnectAdmin\",\"Resource\":\"${CLUSTER_ARN}\"},{\"Effect\":\"Allow\",\"Action\":\"sns:Publish\",\"Resource\":\"*\"}]}" 2>/dev/null
+  --policy-document "$POLICY_DOC" 2>/dev/null
 echo "inline policy set"
 
 LAMBDA_ROLE_ARN="arn:aws:iam::${ACCOUNT}:role/${LAMBDA_ROLE}"
