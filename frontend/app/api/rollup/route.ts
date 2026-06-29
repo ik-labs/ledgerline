@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { runRollup } from "@/lib/rollup"
+import { checkWriteAuth } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
-export async function POST() {
+export async function POST(request: Request) {
+  // In-app admin action: key or same-origin.
+  const denied = checkWriteAuth(request, { allowSameOrigin: true })
+  if (denied) return denied
+
   try {
     const invoices = await runRollup()
     return NextResponse.json({ ok: true, invoices })

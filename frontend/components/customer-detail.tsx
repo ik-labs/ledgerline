@@ -19,8 +19,6 @@ import type { CustomerUsage } from "@/lib/types"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-const METRICS = ["api_call", "gb_stored", "seat", "compute_ms", "egress_gb"]
-
 export function CustomerDetail({
   customerId,
   initialData,
@@ -60,29 +58,16 @@ export function CustomerDetail({
 
   const simulate = useCallback(async () => {
     setSimulating(true)
-    const count = 5 + Math.floor(Math.random() * 6) // 5-10
     try {
-      for (let i = 0; i < count; i++) {
-        const metric = METRICS[Math.floor(Math.random() * METRICS.length)]
-        const quantity =
-          metric === "seat"
-            ? 1 + Math.floor(Math.random() * 3)
-            : Math.round((10 + Math.random() * 900) * 100) / 100
-        await fetch("/api/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customer_id: customerId,
-            metric,
-            quantity,
-            event_time: new Date().toISOString(),
-            idempotency_key: `sim-${customerId}-${Date.now()}-${i}-${Math.random()
-              .toString(36)
-              .slice(2, 8)}`,
-          }),
-        })
-        await new Promise((res) => setTimeout(res, 280))
-      }
+      // Server-side generation: events are created and pushed through the same
+      // ingest path on the server, so the browser never holds the ingest secret.
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId }),
+      })
+      if (!res.ok) throw new Error("simulate failed")
+      const { count } = await res.json()
       toast.success(`Sent ${count} usage events`, {
         description: "Watch the live meter tick up.",
       })

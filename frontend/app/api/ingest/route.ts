@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
 import { ingestUsageEvent } from "@/lib/ingest"
+import { checkWriteAuth } from "@/lib/auth"
 import type { IngestEvent } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
+  // External data plane: require the shared-secret header.
+  const denied = checkWriteAuth(request)
+  if (denied) return denied
+
   let body: Partial<IngestEvent>
   try {
     body = await request.json()
