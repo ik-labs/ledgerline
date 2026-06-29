@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { KeyFromUrl } from '@/components/key-from-url'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -54,6 +55,7 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased">
         {children}
+        <KeyFromUrl />
         <Toaster position="bottom-right" theme="system" />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

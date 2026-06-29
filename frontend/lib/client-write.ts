@@ -15,18 +15,19 @@
 
 export const WRITE_KEY_STORAGE = "ledgerline_api_key"
 
+// localStorage so a magic-link key persists across reloads/tabs for reviewers.
 export function getStoredKey(): string | null {
   return typeof window !== "undefined"
-    ? sessionStorage.getItem(WRITE_KEY_STORAGE)
+    ? localStorage.getItem(WRITE_KEY_STORAGE)
     : null
 }
 export function setStoredKey(key: string): void {
   if (typeof window !== "undefined")
-    sessionStorage.setItem(WRITE_KEY_STORAGE, key)
+    localStorage.setItem(WRITE_KEY_STORAGE, key)
 }
 export function clearStoredKey(): void {
   if (typeof window !== "undefined")
-    sessionStorage.removeItem(WRITE_KEY_STORAGE)
+    localStorage.removeItem(WRITE_KEY_STORAGE)
 }
 
 export async function postWrite(url: string, body: unknown): Promise<Response> {
