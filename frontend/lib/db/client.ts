@@ -64,11 +64,13 @@ function createDb(): DrizzleDb | null {
       pool = createDsqlPool()
     } else if (process.env.DATABASE_URL) {
       const connectionString = process.env.DATABASE_URL
+      // Verify TLS by default. Local/dev can opt out with sslmode=disable; a
+      // provider with a private CA can supply it via DATABASE_CA_CERT.
       pool = new Pool({
         connectionString,
         ssl: connectionString.includes("sslmode=disable")
           ? false
-          : { rejectUnauthorized: false },
+          : { rejectUnauthorized: true, ca: process.env.DATABASE_CA_CERT },
         max: 5,
       })
     } else {
