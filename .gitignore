@@ -1,0 +1,15 @@
+# secrets — repo is public for submission
+.env
+.env.local
+*.local
+
+# node
+node_modules/
+dist/
+*.zip
+
+# os
+.DS_Store
+
+# aws
+.aws-token
