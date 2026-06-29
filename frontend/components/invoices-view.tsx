@@ -4,6 +4,7 @@ import { useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
 import { ChevronDown, FileText, Loader2, Play } from "lucide-react"
+import { postWrite } from "@/lib/client-write"
 import { Button } from "@/components/ui/button"
 import {
   formatCents,
@@ -29,7 +30,7 @@ export function InvoicesView({ initial }: { initial: Invoice[] }) {
   async function runRollup() {
     setRunning(true)
     try {
-      const res = await fetch("/api/rollup", { method: "POST" })
+      const res = await postWrite("/api/rollup", {})
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
       await mutate()

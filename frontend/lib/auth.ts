@@ -4,19 +4,17 @@ import { timingSafeEqual } from "crypto"
 /**
  * Write-path authorization for Ledgerline.
  *
- * Threat model: the app is deployed at a public URL. We must stop anonymous
- * internet traffic from writing to the ledger.
+ * The app is deployed at a public URL, so every endpoint that mutates the ledger
+ * REQUIRES a shared-secret header: `x-api-key === INGEST_API_KEY`.
  *
- *   - /api/ingest accepts arbitrary external input (customer_id, metric,
- *     quantity) -> the real data plane. It REQUIRES a shared-secret header
- *     (x-api-key === INGEST_API_KEY). External producers send this header.
+ * We deliberately do NOT trust Origin/Host/Referer — those are client-controlled
+ * and trivially spoofable by a non-browser client, so same-origin is not auth.
+ * The in-app demo buttons obtain the key from the operator at runtime (prompt ->
+ * sessionStorage; see lib/client-write.ts), so the secret is never shipped in the
+ * client bundle.
  *
- *   - /api/simulate and /api/rollup take NO external input (they operate on the
- *     already-seeded customers) and are triggered by the in-app demo buttons.
- *     They accept the key OR a same-origin request, so the browser buttons work
- *     without the secret ever reaching the client bundle.
- *
- * If INGEST_API_KEY is unset (local/preview), everything is open for convenience.
+ * If INGEST_API_KEY is unset (local/preview), the write endpoints are open for
+ * convenience.
  */
 
 function safeEqual(a: string, b: string): boolean {
@@ -26,38 +24,15 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb)
 }
 
-interface AuthOpts {
-  allowSameOrigin?: boolean
-}
-
-/**
- * Returns a 401/403 response if the request is not authorized, or null if it is.
- */
-export function checkWriteAuth(
-  req: Request,
-  { allowSameOrigin = false }: AuthOpts = {},
-): NextResponse | null {
+/** Returns a 401 response if the request is not authorized, or null if it is. */
+export function checkWriteAuth(req: Request): NextResponse | null {
   const expected = process.env.INGEST_API_KEY
 
   // No key configured -> open (local dev / preview before a key is set).
   if (!expected) return null
 
-  // A valid API key always authorizes.
   const provided = req.headers.get("x-api-key")
   if (provided && safeEqual(provided, expected)) return null
-
-  // In-app admin/demo routes: allow same-origin browser requests.
-  if (allowSameOrigin) {
-    const host = req.headers.get("host")
-    const origin = req.headers.get("origin")
-    if (host && origin) {
-      try {
-        if (new URL(origin).host === host) return null
-      } catch {
-        // malformed Origin -> fall through to deny
-      }
-    }
-  }
 
   return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 }

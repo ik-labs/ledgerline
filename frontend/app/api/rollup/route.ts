@@ -5,8 +5,8 @@ import { checkWriteAuth } from "@/lib/auth"
 export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
-  // In-app admin action: key or same-origin.
-  const denied = checkWriteAuth(request, { allowSameOrigin: true })
+  // In-app admin action: requires the write key.
+  const denied = checkWriteAuth(request)
   if (denied) return denied
 
   try {

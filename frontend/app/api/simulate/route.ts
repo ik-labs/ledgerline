@@ -16,7 +16,7 @@ const METRICS = ["api_call", "gb_stored", "seat", "compute_ms", "egress_gb"]
  * guard is sufficient.
  */
 export async function POST(request: Request) {
-  const denied = checkWriteAuth(request, { allowSameOrigin: true })
+  const denied = checkWriteAuth(request)
   if (denied) return denied
 
   let customerId: string | undefined

@@ -5,6 +5,7 @@ import useSWR from "swr"
 import { toast } from "sonner"
 import { Activity, ArrowLeft, Loader2, Zap } from "lucide-react"
 import Link from "next/link"
+import { postWrite } from "@/lib/client-write"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
 import { useCountUp } from "@/hooks/use-count-up"
@@ -61,11 +62,7 @@ export function CustomerDetail({
     try {
       // Server-side generation: events are created and pushed through the same
       // ingest path on the server, so the browser never holds the ingest secret.
-      const res = await fetch("/api/simulate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId }),
-      })
+      const res = await postWrite("/api/simulate", { customerId })
       if (!res.ok) throw new Error("simulate failed")
       const { count } = await res.json()
       toast.success(`Sent ${count} usage events`, {
