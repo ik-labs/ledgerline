@@ -10,7 +10,8 @@ INSERT INTO pricing (metric, unit_price_cents) VALUES
     ('gb_stored', 12),     -- $0.12 per GB stored
     ('seat',    1500),     -- $15.00 per seat
     ('compute_ms', 1),     -- $0.01 per compute-ms
-    ('egress_gb',  9)      -- $0.09 per GB egress
+    ('egress_gb',  9),     -- $0.09 per GB egress
+    ('credit',     1)      -- correction line: 1c per unit, credits use negative quantity
 ON CONFLICT (metric) DO NOTHING;
 
 -- Customers (stable ids matching the v0 preview seed).

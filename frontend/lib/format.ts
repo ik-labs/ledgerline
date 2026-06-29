@@ -24,6 +24,7 @@ const METRIC_LABELS: Record<string, string> = {
   seat: "Seats",
   compute_ms: "Compute (ms)",
   egress_gb: "Egress (GB)",
+  credit: "Credit (correction)",
 }
 
 export function metricLabel(metric: string): string {
@@ -44,6 +45,9 @@ export function describeEvent(metric: string, quantity: number): string {
       return `${q} ms compute`
     case "egress_gb":
       return `${q} GB egress`
+    case "credit":
+      // credit quantity is negative cents (priced at 1c/unit)
+      return `${formatCents(Math.abs(quantity))} credit applied`
     default:
       return `${q} ${metric}`
   }

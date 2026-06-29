@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { Activity, ArrowLeft, Loader2, Zap } from "lucide-react"
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Loader2,
+  Minus,
+  Zap,
+} from "lucide-react"
 import Link from "next/link"
 import { postWrite } from "@/lib/client-write"
 import { ConsistencyTest } from "@/components/consistency-test"
@@ -38,6 +45,7 @@ export function CustomerDetail({
   const usage = data ?? initialData
   const animatedTotal = useCountUp(usage.runningTotalCents)
   const [simulating, setSimulating] = useState(false)
+  const [crediting, setCrediting] = useState(false)
   const seenIds = useRef<Set<string>>(
     new Set(initialData.recentEvents.map((e) => e.id)),
   )
@@ -77,6 +85,31 @@ export function CustomerDetail({
     }
   }, [customerId])
 
+  const issueCredit = useCallback(async () => {
+    setCrediting(true)
+    try {
+      // A credit is a NEW append-only event with negative quantity (priced at
+      // 1c/unit) — corrections are events, never edits. Flows through SQS too.
+      const res = await postWrite("/api/ingest", {
+        customer_id: customerId,
+        metric: "credit",
+        quantity: -500, // -$5.00
+        idempotency_key: `credit-${customerId}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`,
+      })
+      if (!res.ok) throw new Error("credit failed")
+      toast.success("Issued $5.00 credit", {
+        description: "Recorded as a correction event — the ledger stays append-only.",
+      })
+      setTimeout(() => mutate(), 1500)
+    } catch {
+      toast.error("Failed to issue credit")
+    } finally {
+      setCrediting(false)
+    }
+  }, [customerId, mutate])
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -114,6 +147,27 @@ export function CustomerDetail({
           </span>
         </div>
       </div>
+
+      {usage.status !== "ok" && (
+        <div
+          className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${
+            usage.status === "over"
+              ? "border-destructive/40 bg-destructive/10 text-destructive"
+              : "border-warning/40 bg-warning/10 text-warning"
+          }`}
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            {usage.status === "over"
+              ? `${usage.customer.name} has crossed its ${formatCents(
+                  usage.customer.spendThresholdCents,
+                )} spend threshold — a threshold alert was triggered (Amazon SNS).`
+              : `${usage.customer.name} is approaching its ${formatCents(
+                  usage.customer.spendThresholdCents,
+                )} spend threshold.`}
+          </span>
+        </div>
+      )}
 
       {/* Spend trend */}
       <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -153,19 +207,35 @@ export function CustomerDetail({
                   live
                 </span>
               </div>
-              <Button
-                size="sm"
-                onClick={simulate}
-                disabled={simulating}
-                className="bg-brand text-brand-foreground hover:bg-brand/90"
-              >
-                {simulating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Zap className="h-3.5 w-3.5" />
-                )}
-                Simulate usage
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={issueCredit}
+                  disabled={crediting}
+                  title="Issue a $5 credit as an append-only correction event"
+                >
+                  {crediting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Minus className="h-3.5 w-3.5" />
+                  )}
+                  Credit $5
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={simulate}
+                  disabled={simulating}
+                  className="bg-brand text-brand-foreground hover:bg-brand/90"
+                >
+                  {simulating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="h-3.5 w-3.5" />
+                  )}
+                  Simulate usage
+                </Button>
+              </div>
             </div>
 
             {usage.breakdown.length === 0 ? (
@@ -202,10 +272,10 @@ export function CustomerDetail({
                         {metricLabel(b.metric)}
                       </td>
                       <td className="px-4 py-2.5 text-right font-mono tabular-nums text-muted-foreground">
-                        {formatQuantity(b.quantity)}
+                        {b.metric === "credit" ? "—" : formatQuantity(b.quantity)}
                       </td>
                       <td className="px-4 py-2.5 text-right font-mono tabular-nums text-muted-foreground">
-                        {formatCents(b.unitPriceCents)}
+                        {b.metric === "credit" ? "—" : formatCents(b.unitPriceCents)}
                       </td>
                       <td className="px-4 py-2.5 text-right font-mono tabular-nums text-foreground">
                         {formatCents(b.subtotalCents)}

@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/site-header"
 import { DbBanner } from "@/components/db-banner"
 import { CustomersTable } from "@/components/customers-table"
+import { PipelineHealth } from "@/components/pipeline-health"
 import { getCustomerSummaries } from "@/lib/repository"
 import { formatCents } from "@/lib/format"
 
@@ -35,6 +36,10 @@ export default async function CustomersPage() {
             tone={overLimit > 0 ? "warn" : "default"}
           />
         </dl>
+
+        <div className="mt-6">
+          <PipelineHealth />
+        </div>
 
         <div className="mt-6">
           <CustomersTable customers={customers} />

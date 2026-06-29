@@ -65,7 +65,8 @@ const INSERT_SQL = `
 export async function handler(event) {
   const db = getPool();
   const batchItemFailures = [];
-  const touchedCustomers = new Set();
+  // customerId -> idempotency_keys actually inserted this batch
+  const insertedByCustomer = new Map();
 
   for (const record of event.Records ?? []) {
     try {
@@ -82,18 +83,22 @@ export async function handler(event) {
         e.event_time ?? new Date().toISOString(),
         e.idempotency_key,
       ]);
-      if (res.rowCount > 0) touchedCustomers.add(e.customer_id);
+      if (res.rowCount > 0) {
+        const keys = insertedByCustomer.get(e.customer_id) ?? [];
+        keys.push(e.idempotency_key);
+        insertedByCustomer.set(e.customer_id, keys);
+      }
     } catch (err) {
       console.error("failed record", record.messageId, err);
       batchItemFailures.push({ itemIdentifier: record.messageId });
     }
   }
 
-  // Optional threshold alert — only for customers that got a new event this batch.
-  if (sns && touchedCustomers.size > 0) {
-    for (const customerId of touchedCustomers) {
+  // Threshold alert — fire ONCE, only when this batch causes the crossing.
+  if (sns && insertedByCustomer.size > 0) {
+    for (const [customerId, keys] of insertedByCustomer) {
       try {
-        await maybeAlertThreshold(db, customerId);
+        await maybeAlertThreshold(db, customerId, keys);
       } catch (err) {
         console.error("threshold check failed", customerId, err);
       }
@@ -103,11 +108,16 @@ export async function handler(event) {
   return { batchItemFailures };
 }
 
-async function maybeAlertThreshold(db, customerId) {
+async function maybeAlertThreshold(db, customerId, batchKeys) {
+  // total_after includes this batch; total_before excludes the keys we just
+  // inserted. We alert only when before < threshold <= after (the crossing),
+  // so a customer already over the limit doesn't get spammed every batch.
   const { rows } = await db.query(
     `
     SELECT c.name, c.spend_threshold_cents,
-           COALESCE(SUM(e.quantity * p.unit_price_cents), 0)::bigint AS total_cents
+           COALESCE(SUM(e.quantity * p.unit_price_cents), 0)::bigint AS total_after,
+           COALESCE(SUM(e.quantity * p.unit_price_cents)
+                    FILTER (WHERE NOT (e.idempotency_key = ANY($2))), 0)::bigint AS total_before
     FROM customers c
     LEFT JOIN usage_events e
       ON e.customer_id = c.id
@@ -116,16 +126,22 @@ async function maybeAlertThreshold(db, customerId) {
     WHERE c.id = $1
     GROUP BY c.name, c.spend_threshold_cents
   `,
-    [customerId],
+    [customerId, batchKeys],
   );
   const row = rows[0];
   if (!row || row.spend_threshold_cents == null) return;
-  if (Number(row.total_cents) >= Number(row.spend_threshold_cents)) {
+
+  const threshold = Number(row.spend_threshold_cents);
+  const before = Number(row.total_before);
+  const after = Number(row.total_after);
+  if (before < threshold && after >= threshold) {
     await sns.send(
       new PublishCommand({
         TopicArn: SNS_TOPIC_ARN,
         Subject: `Ledgerline: ${row.name} crossed spend threshold`,
-        Message: `${row.name} has accrued ${row.total_cents} cents this cycle, crossing the ${row.spend_threshold_cents} cent threshold.`,
+        Message:
+          `${row.name} just crossed its ${threshold} cent spend threshold this cycle.\n\n` +
+          `Cycle spend is now ${after} cents (was ${before}).`,
       }),
     );
   }
