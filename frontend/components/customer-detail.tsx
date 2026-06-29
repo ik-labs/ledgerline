@@ -6,6 +6,8 @@ import { toast } from "sonner"
 import { Activity, ArrowLeft, Loader2, Zap } from "lucide-react"
 import Link from "next/link"
 import { postWrite } from "@/lib/client-write"
+import { ConsistencyTest } from "@/components/consistency-test"
+import { SpendAreaChart } from "@/components/charts"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
 import { useCountUp } from "@/hooks/use-count-up"
@@ -27,7 +29,7 @@ export function CustomerDetail({
   customerId: string
   initialData: CustomerUsage
 }) {
-  const { data } = useSWR<CustomerUsage>(
+  const { data, mutate } = useSWR<CustomerUsage>(
     `/api/customers/${customerId}/usage`,
     fetcher,
     { refreshInterval: 2000, fallbackData: initialData },
@@ -111,6 +113,26 @@ export function CustomerDetail({
             limit {formatCents(usage.customer.spendThresholdCents)}
           </span>
         </div>
+      </div>
+
+      {/* Spend trend */}
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-sm font-medium text-foreground">Spend this cycle</h2>
+          <span className="font-mono text-xs text-muted-foreground">
+            cumulative · {usage.dailySeries.length} day
+            {usage.dailySeries.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        {usage.runningTotalCents > 0 ? (
+          <div className="px-2 pb-2 pt-4">
+            <SpendAreaChart data={usage.dailySeries} />
+          </div>
+        ) : (
+          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+            No spend yet this cycle.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -248,6 +270,8 @@ export function CustomerDetail({
           </div>
         </section>
       </div>
+
+      <ConsistencyTest customerId={customerId} onComplete={() => mutate()} />
     </div>
   )
 }

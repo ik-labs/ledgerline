@@ -3,12 +3,45 @@ import type {
   CustomerStatus,
   CustomerSummary,
   CustomerUsage,
+  DailyPoint,
   Invoice,
   InvoiceLineItem,
   MetricBreakdown,
   PricingRate,
   UsageEvent,
 } from "./types"
+
+const DAY_MS = 86_400_000
+
+/** Cumulative spend per day across the current cycle (for the trend chart). */
+export function buildDailySeries(
+  events: UsageEvent[],
+  pricing: PricingRate[],
+  now = new Date(),
+): DailyPoint[] {
+  const { start, end } = getCurrentCycle(now)
+  const prices = priceMap(pricing)
+  const lastDay = Math.min(now.getTime(), end.getTime() - 1)
+  const days = Math.floor((lastDay - start.getTime()) / DAY_MS) + 1
+  const buckets = new Array(Math.max(days, 1)).fill(0)
+
+  for (const e of events) {
+    const t = new Date(e.eventTime).getTime()
+    if (t < start.getTime() || t >= end.getTime()) continue
+    const idx = Math.floor((t - start.getTime()) / DAY_MS)
+    if (idx < 0 || idx >= buckets.length) continue
+    buckets[idx] += Math.round(Number(e.quantity) * (prices.get(e.metric) ?? 0))
+  }
+
+  let cumulative = 0
+  return buckets.map((cents, i) => {
+    cumulative += cents
+    return {
+      date: new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10),
+      cents: cumulative,
+    }
+  })
+}
 
 /** The current monthly billing cycle [start, end). */
 export function getCurrentCycle(now = new Date()): {
@@ -130,6 +163,7 @@ export function buildCustomerUsage(
     status: statusFor(runningTotalCents, customer.spendThresholdCents),
     breakdown,
     recentEvents,
+    dailySeries: buildDailySeries(cycleEvents, pricing, now),
   }
 }
 

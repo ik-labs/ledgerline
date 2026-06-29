@@ -39,12 +39,18 @@ export interface CustomerSummary {
   status: CustomerStatus
 }
 
+export interface DailyPoint {
+  date: string // YYYY-MM-DD
+  cents: number // cumulative spend through this day in the cycle
+}
+
 export interface CustomerUsage {
   customer: Customer
   runningTotalCents: number
   status: CustomerStatus
   breakdown: MetricBreakdown[]
   recentEvents: Array<UsageEvent & { unitPriceCents: number; subtotalCents: number }>
+  dailySeries: DailyPoint[]
 }
 
 export interface InvoiceLineItem {

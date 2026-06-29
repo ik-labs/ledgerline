@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { ChevronRight, Users } from "lucide-react"
 import { StatusBadge } from "@/components/status-badge"
+import { MiniBar } from "@/components/charts"
 import { formatCents } from "@/lib/format"
 import type { CustomerSummary } from "@/lib/types"
 
@@ -12,6 +13,7 @@ export function CustomersTable({
   customers: CustomerSummary[]
 }) {
   const router = useRouter()
+  const maxTotal = Math.max(...customers.map((c) => c.runningTotalCents), 1)
 
   if (customers.length === 0) {
     return (
@@ -70,8 +72,15 @@ export function CustomersTable({
               <td className="hidden px-4 py-3 sm:table-cell">
                 <StatusBadge status={c.status} />
               </td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">
-                {formatCents(c.runningTotalCents)}
+              <td className="px-4 py-3">
+                <div className="flex flex-col items-end gap-1.5">
+                  <span className="font-mono tabular-nums text-foreground">
+                    {formatCents(c.runningTotalCents)}
+                  </span>
+                  <div className="w-24">
+                    <MiniBar fraction={c.runningTotalCents / maxTotal} />
+                  </div>
+                </div>
               </td>
               <td className="px-2 py-3 text-muted-foreground">
                 <ChevronRight className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" />
