@@ -13,32 +13,51 @@ import type {
 
 const DAY_MS = 86_400_000
 
-/** Cumulative spend per day across the current cycle (for the trend chart). */
+/** Cycle elapsed/total days and the run-rate forecast for end-of-cycle spend. */
+export function forecast(
+  runningTotalCents: number,
+  now = new Date(),
+): { projectedCents: number; cycleProgress: number } {
+  const { start, end } = getCurrentCycle(now)
+  const daysInCycle = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS))
+  const daysElapsed = Math.min(
+    daysInCycle,
+    Math.max(1, Math.ceil((now.getTime() - start.getTime()) / DAY_MS)),
+  )
+  const rate = runningTotalCents / daysElapsed
+  return {
+    projectedCents: Math.round(rate * daysInCycle),
+    cycleProgress: daysElapsed / daysInCycle,
+  }
+}
+
+/**
+ * Cumulative spend per day across the current cycle (for the trend chart).
+ * Computed by re-pricing all events up to each day's end with buildBreakdown, so
+ * the curve is graduated-pricing-correct and its final point equals the meter.
+ */
 export function buildDailySeries(
   events: UsageEvent[],
   pricing: PricingRate[],
   now = new Date(),
 ): DailyPoint[] {
   const { start, end } = getCurrentCycle(now)
-  const prices = priceMap(pricing)
   const lastDay = Math.min(now.getTime(), end.getTime() - 1)
-  const days = Math.floor((lastDay - start.getTime()) / DAY_MS) + 1
-  const buckets = new Array(Math.max(days, 1)).fill(0)
+  const days = Math.max(1, Math.floor((lastDay - start.getTime()) / DAY_MS) + 1)
 
-  for (const e of events) {
+  const cycleEvents = events.filter((e) => {
     const t = new Date(e.eventTime).getTime()
-    if (t < start.getTime() || t >= end.getTime()) continue
-    const idx = Math.floor((t - start.getTime()) / DAY_MS)
-    if (idx < 0 || idx >= buckets.length) continue
-    buckets[idx] += Math.round(Number(e.quantity) * (prices.get(e.metric) ?? 0))
-  }
+    return t >= start.getTime() && t < end.getTime()
+  })
 
-  let cumulative = 0
-  return buckets.map((cents, i) => {
-    cumulative += cents
+  return Array.from({ length: days }, (_, i) => {
+    const dayEnd = start.getTime() + (i + 1) * DAY_MS
+    const upto = cycleEvents.filter(
+      (e) => new Date(e.eventTime).getTime() < dayEnd,
+    )
     return {
       date: new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10),
-      cents: cumulative,
+      cents: totalCents(buildBreakdown(upto, pricing)),
     }
   })
 }
@@ -57,8 +76,32 @@ export function getCurrentCycle(now = new Date()): {
   return { start, end }
 }
 
-function priceMap(pricing: PricingRate[]): Map<string, number> {
-  return new Map(pricing.map((p) => [p.metric, p.unitPriceCents]))
+function priceMap(pricing: PricingRate[]): Map<string, PricingRate> {
+  return new Map(pricing.map((p) => [p.metric, p]))
+}
+
+/** Graduated cost for a quantity across volume tiers. */
+export function gradCost(qty: number, tiers: PricingRate["tiers"]): number {
+  if (!tiers || tiers.length === 0) return 0
+  let lower = 0
+  let cost = 0
+  for (const t of tiers) {
+    const upper = t.upToQty ?? Infinity
+    const band = Math.min(qty, upper) - lower
+    if (band > 0) cost += band * t.unitPriceCents
+    lower = upper
+    if (qty <= upper) break
+  }
+  return Math.round(cost)
+}
+
+/** Cost for `quantity` of `metric` — graduated if tiers are set, else flat. */
+function costFor(rate: PricingRate | undefined, quantity: number): number {
+  if (!rate) return 0
+  if (rate.tiers && rate.tiers.length > 0 && quantity > 0) {
+    return gradCost(quantity, rate.tiers)
+  }
+  return Math.round(quantity * rate.unitPriceCents)
 }
 
 function statusFor(total: number, threshold: number): CustomerStatus {
@@ -81,20 +124,22 @@ export function buildBreakdown(
   events: UsageEvent[],
   pricing: PricingRate[],
 ): MetricBreakdown[] {
-  const prices = priceMap(pricing)
+  const rates = priceMap(pricing)
   const byMetric = new Map<string, number>()
   for (const e of events) {
     byMetric.set(e.metric, (byMetric.get(e.metric) ?? 0) + Number(e.quantity))
   }
   return Array.from(byMetric.entries())
     .map(([metric, quantity]) => {
-      const unitPriceCents = prices.get(metric) ?? 0
-      return {
-        metric,
-        quantity,
-        unitPriceCents,
-        subtotalCents: Math.round(quantity * unitPriceCents),
-      }
+      const rate = rates.get(metric)
+      const tiered = !!(rate?.tiers && rate.tiers.length > 0)
+      const subtotalCents = costFor(rate, quantity)
+      // effective (blended) unit rate when tiered, else the flat rate
+      const unitPriceCents =
+        tiered && quantity !== 0
+          ? Math.round(subtotalCents / quantity)
+          : rate?.unitPriceCents ?? 0
+      return { metric, quantity, unitPriceCents, subtotalCents, tiered }
     })
     .sort((a, b) => b.subtotalCents - a.subtotalCents)
 }
@@ -136,11 +181,13 @@ export function buildCustomerUsage(
   recentLimit = 25,
   now = new Date(),
 ): CustomerUsage {
-  const prices = priceMap(pricing)
+  const rates = priceMap(pricing)
   const customerEvents = events.filter((e) => e.customerId === customer.id)
   const cycleEvents = eventsInCycle(customerEvents, now)
   const breakdown = buildBreakdown(cycleEvents, pricing)
   const runningTotalCents = totalCents(breakdown)
+  // per-event display rate: effective (blended) rate from the breakdown when set
+  const effRate = new Map(breakdown.map((b) => [b.metric, b.unitPriceCents]))
 
   const recentEvents = [...customerEvents]
     .sort(
@@ -149,7 +196,8 @@ export function buildCustomerUsage(
     )
     .slice(0, recentLimit)
     .map((e) => {
-      const unitPriceCents = prices.get(e.metric) ?? 0
+      const unitPriceCents =
+        effRate.get(e.metric) ?? rates.get(e.metric)?.unitPriceCents ?? 0
       return {
         ...e,
         unitPriceCents,
@@ -164,6 +212,7 @@ export function buildCustomerUsage(
     breakdown,
     recentEvents,
     dailySeries: buildDailySeries(cycleEvents, pricing, now),
+    ...forecast(runningTotalCents, now),
   }
 }
 

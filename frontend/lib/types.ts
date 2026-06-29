@@ -18,16 +18,23 @@ export interface UsageEvent {
   createdAt: string
 }
 
+export interface PricingTier {
+  upToQty: number | null // upper bound of this band (null = unbounded)
+  unitPriceCents: number
+}
+
 export interface PricingRate {
   metric: string
   unitPriceCents: number
+  tiers?: PricingTier[] | null // graduated volume pricing; when set, overrides flat
 }
 
 export interface MetricBreakdown {
   metric: string
   quantity: number
-  unitPriceCents: number
+  unitPriceCents: number // effective (blended) rate when tiered
   subtotalCents: number
+  tiered?: boolean
 }
 
 export interface CustomerSummary {
@@ -51,6 +58,8 @@ export interface CustomerUsage {
   breakdown: MetricBreakdown[]
   recentEvents: Array<UsageEvent & { unitPriceCents: number; subtotalCents: number }>
   dailySeries: DailyPoint[]
+  projectedCents: number // forecast end-of-cycle spend from current run-rate
+  cycleProgress: number // fraction of the cycle elapsed (0..1)
 }
 
 export interface InvoiceLineItem {
@@ -58,6 +67,7 @@ export interface InvoiceLineItem {
   quantity: number
   unitPriceCents: number
   subtotalCents: number
+  tiered?: boolean
 }
 
 export interface Invoice {

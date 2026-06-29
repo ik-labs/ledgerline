@@ -66,6 +66,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
   const pricing: PricingRate[] = pricingRows.map((p) => ({
     metric: p.metric,
     unitPriceCents: Number(p.unitPriceCents),
+    tiers: (p.tiers as PricingRate["tiers"]) ?? null,
   }))
 
   const events: UsageEvent[] = eventRows.map((e) => ({
@@ -112,6 +113,20 @@ export async function getCustomerById(
 ): Promise<Customer | null> {
   const { customers } = await loadSnapshot()
   return customers.find((c) => c.id === customerId) ?? null
+}
+
+/** Full append-only event log for a customer, newest first (for the audit trail). */
+export async function getCustomerEvents(
+  customerId: string,
+  limit = 200,
+): Promise<UsageEvent[]> {
+  const { events } = await loadSnapshot()
+  return events
+    .filter((e) => e.customerId === customerId)
+    .sort(
+      (a, b) => new Date(b.eventTime).getTime() - new Date(a.eventTime).getTime(),
+    )
+    .slice(0, limit)
 }
 
 /** Resolve a route param that may be a UUID or a name-slug into usage data. */

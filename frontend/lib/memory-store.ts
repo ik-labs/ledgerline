@@ -17,11 +17,20 @@ interface Store {
 }
 
 const PRICING: PricingRate[] = [
-  { metric: "api_call", unitPriceCents: 2 },
+  {
+    metric: "api_call",
+    unitPriceCents: 2,
+    // volume pricing: first 5,000 calls at 2c, beyond at 1c
+    tiers: [
+      { upToQty: 5000, unitPriceCents: 2 },
+      { upToQty: null, unitPriceCents: 1 },
+    ],
+  },
   { metric: "gb_stored", unitPriceCents: 12 },
   { metric: "seat", unitPriceCents: 1500 },
   { metric: "compute_ms", unitPriceCents: 1 },
   { metric: "egress_gb", unitPriceCents: 9 },
+  { metric: "credit", unitPriceCents: 1 },
 ]
 
 // Stable UUIDs so links are predictable across reloads in preview.

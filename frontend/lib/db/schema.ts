@@ -43,6 +43,8 @@ export const usageEvents = pgTable("usage_events", {
 export const pricing = pgTable("pricing", {
   metric: text("metric").primaryKey(),
   unitPriceCents: bigint("unit_price_cents", { mode: "number" }).notNull(),
+  // optional graduated volume tiers: [{ upToQty, unitPriceCents }]
+  tiers: jsonb("tiers"),
 })
 
 export const invoices = pgTable("invoices", {

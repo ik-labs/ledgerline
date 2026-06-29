@@ -4,8 +4,11 @@
 -- roll-up updates the existing invoice instead of creating a duplicate. This is
 -- the roll-up's version of "never double-count".
 --
--- Cycle = current calendar month. Used by both the roll-up Lambda and the manual
--- POST /api/rollup demo trigger.
+-- Cycle = current calendar month. Used by the scheduled roll-up Lambda.
+--
+-- NOTE: this SQL prices flat (quantity * unit_price_cents). The app-layer roll-up
+-- (frontend/lib/rollup.ts, used by the "Run roll-up now" button) applies graduated
+-- volume tiers via buildBreakdown — that is the authoritative, tier-aware path.
 
 WITH cycle AS (
     SELECT date_trunc('month', now())                          AS period_start,

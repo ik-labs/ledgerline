@@ -5,14 +5,16 @@
 
 -- Rate card — must cover every metric the "Simulate usage" button emits
 -- (api_call, gb_stored, seat, compute_ms, egress_gb). Prices in integer cents.
-INSERT INTO pricing (metric, unit_price_cents) VALUES
-    ('api_call',   2),     -- $0.02 per API call
-    ('gb_stored', 12),     -- $0.12 per GB stored
-    ('seat',    1500),     -- $15.00 per seat
-    ('compute_ms', 1),     -- $0.01 per compute-ms
-    ('egress_gb',  9),     -- $0.09 per GB egress
-    ('credit',     1)      -- correction line: 1c per unit, credits use negative quantity
-ON CONFLICT (metric) DO NOTHING;
+INSERT INTO pricing (metric, unit_price_cents, tiers) VALUES
+    ('api_call',   2, '[{"upToQty":5000,"unitPriceCents":2},{"upToQty":null,"unitPriceCents":1}]'::jsonb), -- volume: first 5k @ 2c, beyond @ 1c
+    ('gb_stored', 12, NULL),   -- $0.12 per GB stored
+    ('seat',    1500, NULL),   -- $15.00 per seat
+    ('compute_ms', 1, NULL),   -- $0.01 per compute-ms
+    ('egress_gb',  9, NULL),   -- $0.09 per GB egress
+    ('credit',     1, NULL)    -- correction line: 1c per unit, credits use negative quantity
+ON CONFLICT (metric) DO UPDATE
+    SET unit_price_cents = EXCLUDED.unit_price_cents,
+        tiers            = EXCLUDED.tiers;
 
 -- Customers (stable ids matching the v0 preview seed).
 INSERT INTO customers (id, name, plan, spend_threshold_cents) VALUES

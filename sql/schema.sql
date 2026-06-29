@@ -48,7 +48,8 @@ CREATE INDEX ASYNC usage_events_customer_time
 -- ----------------------------------------------------------------------------
 CREATE TABLE pricing (
     metric           text PRIMARY KEY,
-    unit_price_cents bigint NOT NULL
+    unit_price_cents bigint NOT NULL,
+    tiers            jsonb            -- optional graduated volume pricing
 );
 
 -- ----------------------------------------------------------------------------
