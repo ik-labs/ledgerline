@@ -5,6 +5,7 @@ import { ChevronRight, Users } from "lucide-react"
 import { StatusBadge } from "@/components/status-badge"
 import { MiniBar } from "@/components/charts"
 import { formatCents } from "@/lib/format"
+import { slugify } from "@/lib/slug"
 import type { CustomerSummary } from "@/lib/types"
 
 export function CustomersTable({
@@ -55,9 +56,10 @@ export function CustomersTable({
             <tr
               key={c.id}
               tabIndex={0}
-              onClick={() => router.push(`/customers/${c.id}`)}
+              onClick={() => router.push(`/customers/${slugify(c.name)}`)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") router.push(`/customers/${c.id}`)
+                if (e.key === "Enter")
+                  router.push(`/customers/${slugify(c.name)}`)
               }}
               className="group cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
             >

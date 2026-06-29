@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { WriteUnlock } from "@/components/write-unlock"
 
 const LINKS = [
   { href: "/", label: "Customers" },
@@ -50,10 +51,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-2 sm:flex">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            <span className="font-mono">usage-based billing</span>
-          </span>
+          <WriteUnlock />
         </div>
       </div>
     </header>

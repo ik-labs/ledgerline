@@ -13,14 +13,27 @@
  * and the operator is never prompted.
  */
 
-const STORE = "ledgerline_api_key"
+export const WRITE_KEY_STORAGE = "ledgerline_api_key"
+
+export function getStoredKey(): string | null {
+  return typeof window !== "undefined"
+    ? sessionStorage.getItem(WRITE_KEY_STORAGE)
+    : null
+}
+export function setStoredKey(key: string): void {
+  if (typeof window !== "undefined")
+    sessionStorage.setItem(WRITE_KEY_STORAGE, key)
+}
+export function clearStoredKey(): void {
+  if (typeof window !== "undefined")
+    sessionStorage.removeItem(WRITE_KEY_STORAGE)
+}
 
 export async function postWrite(url: string, body: unknown): Promise<Response> {
   const json = JSON.stringify(body)
   const headers: Record<string, string> = { "Content-Type": "application/json" }
 
-  const saved =
-    typeof window !== "undefined" ? sessionStorage.getItem(STORE) : null
+  const saved = getStoredKey()
   if (saved) headers["x-api-key"] = saved
 
   let res = await fetch(url, { method: "POST", headers, body: json })
@@ -30,13 +43,13 @@ export async function postWrite(url: string, body: unknown): Promise<Response> {
       .prompt("Enter the Ledgerline write key (x-api-key):")
       ?.trim()
     if (!key) return res
-    sessionStorage.setItem(STORE, key)
+    setStoredKey(key)
     res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": key },
       body: json,
     })
-    if (res.status === 401) sessionStorage.removeItem(STORE) // bad key, don't cache
+    if (res.status === 401) clearStoredKey() // bad key, don't cache
   }
 
   return res

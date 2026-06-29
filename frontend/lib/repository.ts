@@ -11,6 +11,7 @@ import {
   buildCustomerSummaries,
   buildCustomerUsage,
 } from "./billing"
+import { slugify } from "./slug"
 import type {
   Customer,
   CustomerSummary,
@@ -111,6 +112,18 @@ export async function getCustomerById(
 ): Promise<Customer | null> {
   const { customers } = await loadSnapshot()
   return customers.find((c) => c.id === customerId) ?? null
+}
+
+/** Resolve a route param that may be a UUID or a name-slug into usage data. */
+export async function getCustomerUsageByParam(
+  param: string,
+): Promise<CustomerUsage | null> {
+  const { customers, events, pricing } = await loadSnapshot()
+  const customer = customers.find(
+    (c) => c.id === param || slugify(c.name) === param,
+  )
+  if (!customer) return null
+  return buildCustomerUsage(customer, events, pricing)
 }
 
 export async function getInvoices(): Promise<Invoice[]> {
