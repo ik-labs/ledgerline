@@ -12,35 +12,43 @@
 
 ## System diagram
 
+> Rendered: [`architecture.png`](./architecture.png) (source: [`architecture.mmd`](./architecture.mmd)).
+> Regenerate with: `npx @mermaid-js/mermaid-cli -i docs/architecture.mmd -o docs/architecture.png -b white -w 1600`
+
+![Ledgerline architecture](./architecture.png)
+
 ```mermaid
 flowchart TB
-    subgraph client["Frontend — built with v0, deployed on Vercel"]
-        UI["Billing Dashboard<br/>(Next.js App Router + Tailwind)<br/>Customers · Live Meter · Invoices"]
-    end
+  subgraph FE["Frontend · Next.js (App Router) on Vercel"]
+    UI["Billing dashboard<br/>Customers · Analytics · Pricing simulator<br/>Time-travel · Invoices · Webhooks"]
+  end
 
-    subgraph vercel["Vercel (serverless)"]
-        ING["POST /api/ingest<br/>Usage event endpoint"]
-        READ["GET /api/customers/:id/usage<br/>GET /api/invoices<br/>Read endpoints"]
-    end
+  subgraph API["Vercel serverless · Next.js route handlers"]
+    ING["POST /api/ingest + Simulate / Credit<br/>buffer — never block on a DB write"]
+    DW["Direct writes · x-api-key guarded<br/>/grant · /stress · /rollup"]
+    RD["Reads &amp; compute<br/>/customers · /usage · /analytics<br/>/timetravel · /pricing/simulate · /health"]
+    WHF["Webhook fan-out<br/>SSRF-guarded · manual redirects"]
+  end
 
-    subgraph aws["AWS"]
-        SQS["Amazon SQS<br/>Usage event queue<br/>(buffer — never drop a billable event)"]
-        DRAIN["AWS Lambda<br/>Queue drainer<br/>(writes events into the ledger)"]
-        DSQL[("Aurora DSQL<br/>Strongly-consistent ledger<br/>customers · usage_events · invoices")]
-        SCHED["Amazon EventBridge Scheduler<br/>Close-of-cycle trigger"]
-        ROLLUP["AWS Lambda<br/>Invoice roll-up<br/>(aggregates usage → invoice)"]
-        SNS["Amazon SNS<br/>Threshold alert<br/>(optional demo beat)"]
-    end
+  subgraph AWS["AWS · us-east-1 · single region"]
+    SQS(["Amazon SQS<br/>usage-event buffer"])
+    DR["AWS Lambda · drainer<br/>idempotent insert<br/>ON CONFLICT (idempotency_key) DO NOTHING"]
+    EB["Amazon EventBridge Scheduler<br/>close-of-cycle trigger"]
+    RU["AWS Lambda · roll-up<br/>usage → invoice (upsert)"]
+    SNS(["Amazon SNS<br/>spend-threshold alert"])
+    DSQL[("Aurora DSQL — strongly-consistent ledger<br/>customers · usage_events · pricing (+volume tiers)<br/>plans · credit_grants · invoices<br/>webhook_endpoints · webhook_deliveries")]
+  end
 
-    UI -->|"customer uses product"| ING
-    ING -->|"enqueue event"| SQS
-    SQS -->|"trigger"| DRAIN
-    DRAIN -->|"INSERT usage_event"| DSQL
-    DRAIN -.->|"crossed spend threshold?"| SNS
-    SCHED -->|"end of billing cycle"| ROLLUP
-    ROLLUP -->|"read usage, write invoice"| DSQL
-    READ -->|"running totals + invoices"| DSQL
-    UI -->|"view meter / invoices"| READ
+  EXT["Customer webhook endpoints"]
+  MAIL["Email"]
+
+  UI -->|usage event| ING --> SQS --> DR -->|recorded exactly once| DSQL
+  DR -.->|threshold crossed| SNS -.-> MAIL
+  UI -->|admin / demo actions| DW --> DSQL
+  UI -->|live polling| RD --> DSQL
+  EB -->|end of cycle| RU --> DSQL
+  DW -->|invoice.issued| WHF --> EXT
+  WHF -->|delivery log| DSQL
 ```
 
 ---

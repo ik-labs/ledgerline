@@ -1,0 +1,38 @@
+flowchart TB
+  subgraph FE["Frontend · Next.js (App Router) on Vercel"]
+    UI["Billing dashboard<br/>Customers · Analytics · Pricing simulator<br/>Time-travel · Invoices · Webhooks"]
+  end
+
+  subgraph API["Vercel serverless · Next.js route handlers"]
+    ING["POST /api/ingest + Simulate / Credit<br/>buffer — never block on a DB write"]
+    DW["Direct writes · x-api-key guarded<br/>/grant · /stress · /rollup"]
+    RD["Reads &amp; compute<br/>/customers · /usage · /analytics<br/>/timetravel · /pricing/simulate · /health"]
+    WHF["Webhook fan-out<br/>SSRF-guarded · manual redirects"]
+  end
+
+  subgraph AWS["AWS · us-east-1 · single region"]
+    SQS(["Amazon SQS<br/>usage-event buffer"])
+    DR["AWS Lambda · drainer<br/>idempotent insert<br/>ON CONFLICT (idempotency_key) DO NOTHING"]
+    EB["Amazon EventBridge Scheduler<br/>close-of-cycle trigger"]
+    RU["AWS Lambda · roll-up<br/>usage → invoice (upsert)"]
+    SNS(["Amazon SNS<br/>spend-threshold alert"])
+    DSQL[("Aurora DSQL — strongly-consistent ledger<br/>━━━━━━━━━━━━━━━<br/>customers · usage_events · pricing (+volume tiers)<br/>plans · credit_grants · invoices<br/>webhook_endpoints · webhook_deliveries")]
+  end
+
+  EXT["Customer webhook endpoints"]
+  MAIL["Email"]
+
+  UI -->|usage event| ING --> SQS --> DR -->|recorded exactly once| DSQL
+  DR -.->|threshold crossed| SNS -.-> MAIL
+  UI -->|admin / demo actions| DW --> DSQL
+  UI -->|live polling| RD --> DSQL
+  EB -->|end of cycle| RU --> DSQL
+  DW -->|invoice.issued| WHF --> EXT
+  WHF -->|delivery log| DSQL
+
+  classDef db fill:#0b3d2e,stroke:#10b981,color:#ecfdf5;
+  classDef aws fill:#1f2937,stroke:#f59e0b,color:#fde68a;
+  classDef vercel fill:#111827,stroke:#60a5fa,color:#dbeafe;
+  class DSQL db;
+  class SQS,DR,EB,RU,SNS aws;
+  class ING,DW,RD,WHF vercel;
