@@ -6,6 +6,7 @@ import {
   isSafeWebhookUrl,
   listDeliveries,
   listEndpoints,
+  urlIsDeliverable,
 } from "@/lib/webhooks"
 
 export const dynamic = "force-dynamic"
@@ -28,9 +29,10 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
-  if (!body.url || !isSafeWebhookUrl(body.url)) {
+  // Syntactic pre-filter, then DNS-resolved authoritative check.
+  if (!body.url || !isSafeWebhookUrl(body.url) || !(await urlIsDeliverable(body.url))) {
     return NextResponse.json(
-      { error: "a public http(s) URL is required (private/loopback blocked)" },
+      { error: "a public http(s) URL is required (private/loopback/internal blocked)" },
       { status: 400 },
     )
   }
