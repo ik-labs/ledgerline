@@ -111,7 +111,7 @@ function statusFor(total: number, threshold: number): CustomerStatus {
   return "ok"
 }
 
-function eventsInCycle(events: UsageEvent[], now = new Date()): UsageEvent[] {
+export function eventsInCycle(events: UsageEvent[], now = new Date()): UsageEvent[] {
   const { start, end } = getCurrentCycle(now)
   return events.filter((e) => {
     const t = new Date(e.eventTime).getTime()

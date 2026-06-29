@@ -141,6 +141,11 @@ export async function getCustomerUsageByParam(
   return buildCustomerUsage(customer, events, pricing)
 }
 
+export async function getPricing(): Promise<PricingRate[]> {
+  const { pricing } = await loadSnapshot()
+  return pricing.sort((a, b) => a.metric.localeCompare(b.metric))
+}
+
 export async function getInvoices(): Promise<Invoice[]> {
   const { invoices, customers } = await loadSnapshot()
   return attachCustomerNames(invoices, customers).sort(

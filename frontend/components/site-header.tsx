@@ -8,6 +8,8 @@ import { WriteUnlock } from "@/components/write-unlock"
 const LINKS = [
   { href: "/", label: "Customers" },
   { href: "/invoices", label: "Invoices" },
+  { href: "/analytics", label: "Analytics" },
+  { href: "/pricing", label: "Pricing" },
 ]
 
 export function SiteHeader() {
