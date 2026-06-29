@@ -51,6 +51,28 @@ export interface DailyPoint {
   cents: number // cumulative spend through this day in the cycle
 }
 
+export interface Plan {
+  name: string
+  baseFeeCents: number
+  included: Record<string, number> // metric -> included quantity
+}
+
+export interface SubscriptionLine {
+  metric: string
+  usedQty: number
+  includedQty: number
+  billedQty: number
+  overageCents: number
+}
+
+export interface Subscription {
+  planName: string
+  baseFeeCents: number
+  lines: SubscriptionLine[]
+  overageCents: number
+  totalDueCents: number // base fee + overage
+}
+
 export interface CreditGrant {
   id: string
   customerId: string
@@ -75,6 +97,7 @@ export interface CustomerUsage {
   projectedCents: number // forecast end-of-cycle spend from current run-rate
   cycleProgress: number // fraction of the cycle elapsed (0..1)
   prepaid: PrepaidBalance | null // prepaid credit drawdown, when granted
+  subscription: Subscription | null // plan base fee + overage, when on a plan
 }
 
 export interface InvoiceLineItem {

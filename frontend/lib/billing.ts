@@ -8,7 +8,9 @@ import type {
   Invoice,
   InvoiceLineItem,
   MetricBreakdown,
+  Plan,
   PricingRate,
+  Subscription,
   UsageEvent,
 } from "./types"
 
@@ -180,6 +182,7 @@ export function buildCustomerUsage(
   events: UsageEvent[],
   pricing: PricingRate[],
   grants: CreditGrant[] = [],
+  plans: Plan[] = [],
   recentLimit = 25,
   now = new Date(),
 ): CustomerUsage {
@@ -216,6 +219,44 @@ export function buildCustomerUsage(
     dailySeries: buildDailySeries(cycleEvents, pricing, now),
     ...forecast(runningTotalCents, now),
     prepaid: prepaidBalance(grants, runningTotalCents),
+    subscription: buildSubscription(customer.plan, cycleEvents, pricing, plans),
+  }
+}
+
+/** Subscription bill: plan base fee + overage beyond the included allowance. */
+export function buildSubscription(
+  planName: string,
+  cycleEvents: UsageEvent[],
+  pricing: PricingRate[],
+  plans: Plan[],
+): Subscription | null {
+  const plan = plans.find((p) => p.name === planName)
+  if (!plan) return null
+  const rates = priceMap(pricing)
+
+  const byMetric = new Map<string, number>()
+  for (const e of cycleEvents) {
+    if (e.metric === "credit") continue
+    byMetric.set(e.metric, (byMetric.get(e.metric) ?? 0) + Number(e.quantity))
+  }
+
+  let overageCents = 0
+  const lines = [...byMetric.entries()]
+    .map(([metric, usedQty]) => {
+      const includedQty = plan.included[metric] ?? 0
+      const billedQty = Math.max(0, usedQty - includedQty)
+      const oc = costFor(rates.get(metric), billedQty)
+      overageCents += oc
+      return { metric, usedQty, includedQty, billedQty, overageCents: oc }
+    })
+    .sort((a, b) => b.overageCents - a.overageCents)
+
+  return {
+    planName: plan.name,
+    baseFeeCents: plan.baseFeeCents,
+    lines,
+    overageCents,
+    totalDueCents: plan.baseFeeCents + overageCents,
   }
 }
 

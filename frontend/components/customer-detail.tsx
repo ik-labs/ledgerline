@@ -16,6 +16,7 @@ import { postWrite } from "@/lib/client-write"
 import { ConsistencyTest } from "@/components/consistency-test"
 import { AuditTrail } from "@/components/audit-trail"
 import { PrepaidCard } from "@/components/prepaid-card"
+import { SubscriptionCard } from "@/components/subscription-card"
 import { SpendAreaChart } from "@/components/charts"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -370,6 +371,8 @@ export function CustomerDetail({
           </div>
         </section>
       </div>
+
+      <SubscriptionCard subscription={usage.subscription} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ConsistencyTest customerId={customerId} onComplete={() => mutate()} />

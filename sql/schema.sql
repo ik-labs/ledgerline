@@ -53,6 +53,15 @@ CREATE TABLE pricing (
 );
 
 -- ----------------------------------------------------------------------------
+-- plans  (subscription tiers: base fee + included allowances per metric)
+-- ----------------------------------------------------------------------------
+CREATE TABLE plans (
+    name           text PRIMARY KEY,
+    base_fee_cents bigint NOT NULL,
+    included       jsonb NOT NULL     -- { metric: included_quantity }
+);
+
+-- ----------------------------------------------------------------------------
 -- invoices  (rolled-up cycles)
 --   One invoice per (customer_id, period_start, period_end) — re-running the
 --   roll-up must not create duplicates. This is the roll-up's "never double-count".

@@ -4,9 +4,24 @@ import type {
   CreditGrant,
   Customer,
   Invoice,
+  Plan,
   PricingRate,
   UsageEvent,
 } from "./types"
+
+const PLANS: Plan[] = [
+  { name: "Starter", baseFeeCents: 0, included: { api_call: 2000, gb_stored: 50 } },
+  {
+    name: "Growth",
+    baseFeeCents: 4900,
+    included: { api_call: 10000, gb_stored: 200, compute_ms: 50000, egress_gb: 50, seat: 3 },
+  },
+  {
+    name: "Scale",
+    baseFeeCents: 9900,
+    included: { api_call: 50000, gb_stored: 1000, compute_ms: 200000, egress_gb: 200, seat: 10 },
+  },
+]
 
 /**
  * In-memory data store used ONLY when DATABASE_URL is not configured. It lets
@@ -21,6 +36,7 @@ interface Store {
   events: UsageEvent[]
   invoices: Invoice[]
   grants: CreditGrant[]
+  plans: Plan[]
 }
 
 const PRICING: PricingRate[] = [
@@ -129,6 +145,7 @@ function init(): Store {
     events: seedEvents(),
     invoices: [],
     grants: [{ id: randomUUID(), customerId: C1, amountCents: 100_000, note: "Initial commitment", createdAt: new Date().toISOString() }],
+    plans: PLANS,
   }
 }
 

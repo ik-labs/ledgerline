@@ -47,6 +47,12 @@ export const pricing = pgTable("pricing", {
   tiers: jsonb("tiers"),
 })
 
+export const plans = pgTable("plans", {
+  name: text("name").primaryKey(),
+  baseFeeCents: bigint("base_fee_cents", { mode: "number" }).notNull(),
+  included: jsonb("included").notNull(),
+})
+
 export const creditGrants = pgTable("credit_grants", {
   id: uuid("id").primaryKey().defaultRandom(),
   customerId: uuid("customer_id").notNull(),

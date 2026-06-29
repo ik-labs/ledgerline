@@ -3,6 +3,7 @@ import {
   creditGrants as creditGrantsTable,
   customers as customersTable,
   invoices as invoicesTable,
+  plans as plansTable,
   pricing as pricingTable,
   usageEvents as usageEventsTable,
 } from "./db/schema"
@@ -20,6 +21,7 @@ import type {
   CustomerUsage,
   Invoice,
   InvoiceLineItem,
+  Plan,
   PricingRate,
   UsageEvent,
 } from "./types"
@@ -30,6 +32,7 @@ export interface Snapshot {
   events: UsageEvent[]
   invoices: Invoice[]
   grants: CreditGrant[]
+  plans: Plan[]
 }
 
 function iso(value: Date | string): string {
@@ -49,16 +52,18 @@ export async function loadSnapshot(): Promise<Snapshot> {
       events: s.events,
       invoices: s.invoices,
       grants: s.grants ?? [],
+      plans: s.plans ?? [],
     }
   }
 
-  const [customerRows, pricingRows, eventRows, invoiceRows, grantRows] =
+  const [customerRows, pricingRows, eventRows, invoiceRows, grantRows, planRows] =
     await Promise.all([
       db.select().from(customersTable),
       db.select().from(pricingTable),
       db.select().from(usageEventsTable),
       db.select().from(invoicesTable),
       db.select().from(creditGrantsTable),
+      db.select().from(plansTable),
     ])
 
   const customers: Customer[] = customerRows.map((c) => ({
@@ -105,7 +110,13 @@ export async function loadSnapshot(): Promise<Snapshot> {
     createdAt: iso(g.createdAt),
   }))
 
-  return { customers, pricing, events, invoices, grants }
+  const plans: Plan[] = planRows.map((p) => ({
+    name: p.name,
+    baseFeeCents: Number(p.baseFeeCents),
+    included: (p.included as Record<string, number>) ?? {},
+  }))
+
+  return { customers, pricing, events, invoices, grants, plans }
 }
 
 export async function getCustomerSummaries(): Promise<CustomerSummary[]> {
@@ -116,7 +127,7 @@ export async function getCustomerSummaries(): Promise<CustomerSummary[]> {
 export async function getCustomerUsage(
   customerId: string,
 ): Promise<CustomerUsage | null> {
-  const { customers, events, pricing, grants } = await loadSnapshot()
+  const { customers, events, pricing, grants, plans } = await loadSnapshot()
   const customer = customers.find((c) => c.id === customerId)
   if (!customer) return null
   return buildCustomerUsage(
@@ -124,6 +135,7 @@ export async function getCustomerUsage(
     events,
     pricing,
     grants.filter((g) => g.customerId === customer.id),
+    plans,
   )
 }
 
@@ -152,7 +164,7 @@ export async function getCustomerEvents(
 export async function getCustomerUsageByParam(
   param: string,
 ): Promise<CustomerUsage | null> {
-  const { customers, events, pricing, grants } = await loadSnapshot()
+  const { customers, events, pricing, grants, plans } = await loadSnapshot()
   const customer = customers.find(
     (c) => c.id === param || slugify(c.name) === param,
   )
@@ -162,6 +174,7 @@ export async function getCustomerUsageByParam(
     events,
     pricing,
     grants.filter((g) => g.customerId === customer.id),
+    plans,
   )
 }
 
